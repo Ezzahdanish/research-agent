@@ -1,0 +1,257 @@
+/* ============================================
+   Settings Panel Styles
+   ============================================ */
+
+.settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+    animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.settings-panel {
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeInUp var(--transition-base) ease-out;
+}
+
+.settings-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.settings-panel__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.settings-panel__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.settings-panel__close:hover {
+    background: rgba(108, 92, 231, 0.1);
+    color: var(--text-primary);
+}
+
+.settings-panel__saved {
+    padding: var(--space-2) var(--space-6);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--accent-success);
+    background: rgba(0, 184, 148, 0.08);
+    animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.settings-panel__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-6);
+}
+
+.settings-panel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-6);
+    border-top: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+/* Settings Section */
+.settings-section {
+    margin-bottom: var(--space-6);
+}
+
+.settings-section__title {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-4);
+}
+
+/* Settings Field */
+.settings-field {
+    margin-bottom: var(--space-4);
+}
+
+.settings-field__label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+.settings-field__desc {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.settings-field__options {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.settings-field__option {
+    padding: var(--space-2) var(--space-4);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    background: rgba(108, 92, 231, 0.05);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.settings-field__option:hover {
+    background: rgba(108, 92, 231, 0.1);
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
+}
+
+.settings-field__option.active {
+    background: rgba(108, 92, 231, 0.15);
+    border-color: rgba(108, 92, 231, 0.4);
+    color: var(--accent-primary-light);
+}
+
+/* Toggle */
+.settings-field__toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.settings-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    flex-shrink: 0;
+}
+
+.settings-toggle.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.settings-toggle__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    transition: transform var(--transition-base);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.settings-toggle.active .settings-toggle__thumb {
+    transform: translateX(20px);
+}
+
+/* Languages */
+.settings-field__langs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.settings-lang {
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.settings-lang:hover {
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
+}
+
+.settings-lang.active {
+    background: rgba(0, 206, 201, 0.1);
+    border-color: rgba(0, 206, 201, 0.3);
+    color: var(--accent-secondary-light);
+}
+
+/* Range */
+.settings-range {
+    width: 100%;
+    height: 4px;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-full);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    margin-bottom: var(--space-2);
+}
+
+.settings-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(108, 92, 231, 0.4);
+}
+
+.settings-range__value {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}

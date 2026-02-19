@@ -1,0 +1,171 @@
+/* ============================================
+   Research Progress Styles
+   ============================================ */
+
+.research-progress {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-10) var(--space-5);
+    animation: fadeInUp var(--transition-slow) ease-out;
+}
+
+.research-progress__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-7);
+    max-width: 450px;
+    width: 100%;
+}
+
+/* Orbital Animation */
+.research-progress__orb {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.research-progress__orb-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+}
+
+.research-progress__orb-ring--1 {
+    inset: 0;
+    border-top-color: var(--accent-primary);
+    border-right-color: rgba(108, 92, 231, 0.3);
+    animation: orbit 3s linear infinite;
+}
+
+.research-progress__orb-ring--2 {
+    inset: 12px;
+    border-bottom-color: var(--accent-secondary);
+    border-left-color: rgba(0, 206, 201, 0.3);
+    animation: orbit 2.5s linear infinite reverse;
+}
+
+.research-progress__orb-ring--3 {
+    inset: 24px;
+    border-top-color: var(--accent-primary-light);
+    border-left-color: rgba(162, 155, 254, 0.3);
+    animation: orbit 2s linear infinite;
+}
+
+.research-progress__orb-core {
+    position: absolute;
+    inset: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: 50%;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.research-progress__orb-icon {
+    font-size: 1.5rem;
+    animation: float 2s ease-in-out infinite;
+}
+
+/* Progress Info */
+.research-progress__info {
+    width: 100%;
+    text-align: center;
+}
+
+.research-progress__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+}
+
+.research-progress__mode-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--accent-primary-light);
+    background: rgba(108, 92, 231, 0.1);
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+}
+
+.research-progress__percent {
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: var(--font-mono);
+}
+
+.research-progress__phase {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-4);
+}
+
+/* Progress Bar */
+.research-progress__bar-track {
+    position: relative;
+    height: 6px;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-full);
+    overflow: visible;
+    margin-bottom: var(--space-4);
+}
+
+.research-progress__bar-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    background-size: 200% 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: gradient-shift 2s ease infinite;
+}
+
+.research-progress__bar-glow {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 12px var(--accent-primary), 0 0 24px rgba(108, 92, 231, 0.3);
+    transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.research-progress__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.research-progress__sources {
+    color: var(--text-tertiary);
+}
+
+.research-progress__eta {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Typing Dots */
+.research-progress__dots {
+    display: flex;
+    gap: 6px;
+}
+
+.research-progress__dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    animation: typing-dot 1.4s ease-in-out infinite;
+}
