@@ -1,19 +1,46 @@
 import { useState, useEffect } from 'react';
 import './SettingsPanel.css';
-import { getPreferences, updatePreferences, resetPreferences } from '../store/memory';
+
+// Lightweight localStorage wrapper for preferences (kept client-side intentionally)
+const PREFS_KEY = 'dr_user_preferences';
+const DEFAULTS = {
+    researchMode: 'standard',
+    preferCodeExamples: true,
+    preferredLanguages: ['javascript', 'python'],
+    citationStyle: 'inline',
+    outputFormat: 'markdown',
+    maxSources: 10,
+    showTokenUsage: true,
+    autoSave: true,
+};
+
+function getPrefs() {
+    try {
+        const stored = localStorage.getItem(PREFS_KEY);
+        return stored ? { ...DEFAULTS, ...JSON.parse(stored) } : { ...DEFAULTS };
+    } catch {
+        return { ...DEFAULTS };
+    }
+}
+
+function savePrefs(prefs) {
+    try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch { /* ignore */ }
+    return prefs;
+}
 
 export default function SettingsPanel({ isOpen, onClose }) {
-    const [prefs, setPrefs] = useState(getPreferences());
+    const [prefs, setPrefs] = useState(getPrefs());
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        if (isOpen) {
-            setPrefs(getPreferences());
-        }
+        if (isOpen) setPrefs(getPrefs());
     }, [isOpen]);
 
     const handleChange = (key, value) => {
-        const updated = updatePreferences({ [key]: value });
+        const updated = { ...prefs, [key]: value };
+        savePrefs(updated);
         setPrefs(updated);
         setSaved(true);
         setTimeout(() => setSaved(false), 1500);
@@ -21,8 +48,8 @@ export default function SettingsPanel({ isOpen, onClose }) {
 
     const handleReset = () => {
         if (window.confirm('Reset all preferences to defaults?')) {
-            const defaults = resetPreferences();
-            setPrefs(defaults);
+            savePrefs(DEFAULTS);
+            setPrefs({ ...DEFAULTS });
             setSaved(true);
             setTimeout(() => setSaved(false), 1500);
         }
@@ -59,30 +86,24 @@ export default function SettingsPanel({ isOpen, onClose }) {
                 </div>
 
                 {saved && (
-                    <div className="settings-panel__saved">
-                        ✓ Preferences saved
-                    </div>
+                    <div className="settings-panel__saved">Preferences saved</div>
                 )}
 
                 <div className="settings-panel__body">
-                    {/* Research Mode */}
                     <div className="settings-section">
                         <h3 className="settings-section__title">Research Defaults</h3>
                         <div className="settings-field">
                             <label className="settings-field__label">Default Research Mode</label>
                             <div className="settings-field__options">
-                                <button
-                                    className={`settings-field__option ${prefs.researchMode === 'quick' ? 'active' : ''}`}
-                                    onClick={() => handleChange('researchMode', 'quick')}
-                                >
-                                    ⚡ Quick Mode
-                                </button>
-                                <button
-                                    className={`settings-field__option ${prefs.researchMode === 'deep' ? 'active' : ''}`}
-                                    onClick={() => handleChange('researchMode', 'deep')}
-                                >
-                                    🔬 Deep Mode
-                                </button>
+                                {['quick', 'standard', 'deep'].map(m => (
+                                    <button
+                                        key={m}
+                                        className={`settings-field__option ${prefs.researchMode === m ? 'active' : ''}`}
+                                        onClick={() => handleChange('researchMode', m)}
+                                    >
+                                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -117,7 +138,6 @@ export default function SettingsPanel({ isOpen, onClose }) {
                         </div>
                     </div>
 
-                    {/* Code Preferences */}
                     <div className="settings-section">
                         <h3 className="settings-section__title">Code Preferences</h3>
                         <div className="settings-field">
@@ -151,7 +171,6 @@ export default function SettingsPanel({ isOpen, onClose }) {
                         </div>
                     </div>
 
-                    {/* Display */}
                     <div className="settings-section">
                         <h3 className="settings-section__title">Display</h3>
                         <div className="settings-field">
@@ -167,36 +186,6 @@ export default function SettingsPanel({ isOpen, onClose }) {
                                     <div className="settings-toggle__thumb" />
                                 </button>
                             </div>
-                        </div>
-                        <div className="settings-field">
-                            <div className="settings-field__toggle-row">
-                                <div>
-                                    <label className="settings-field__label">Auto-save Research</label>
-                                    <span className="settings-field__desc">Automatically save completed research</span>
-                                </div>
-                                <button
-                                    className={`settings-toggle ${prefs.autoSave ? 'active' : ''}`}
-                                    onClick={() => handleChange('autoSave', !prefs.autoSave)}
-                                >
-                                    <div className="settings-toggle__thumb" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="settings-section">
-                        <h3 className="settings-section__title">Data</h3>
-                        <div className="settings-field">
-                            <label className="settings-field__label">Max Sources per Research</label>
-                            <input
-                                type="range"
-                                min="3"
-                                max="20"
-                                value={prefs.maxSources || 10}
-                                onChange={e => handleChange('maxSources', parseInt(e.target.value))}
-                                className="settings-range"
-                            />
-                            <span className="settings-range__value">{prefs.maxSources || 10} sources</span>
                         </div>
                     </div>
                 </div>

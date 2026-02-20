@@ -6,38 +6,25 @@ import ResearchProgress from './components/ResearchProgress';
 import ResearchReport from './components/ResearchReport';
 import SettingsPanel from './components/SettingsPanel';
 import Dashboard from './components/Dashboard';
-import FileUploader from './components/FileUploader';
 import {
-  addToHistory,
-  getHistoryItem,
-  updateHistoryItem,
-  addFollowUp,
-  updateUsageStats,
-  getPreferences,
-  getHistory,
-} from './store/memory';
-import {
-  executeResearch,
-  executeFollowUp,
-  detectClarificationNeeded,
-  autoTagQuery,
-} from './utils/researchEngine';
+  startResearch,
+  streamResearch,
+  getReport,
+} from './services/api';
 
 export default function App() {
-  // State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeView, setActiveView] = useState('research'); // 'dashboard' | 'research' | 'files'
+  const [activeView, setActiveView] = useState('research');
   const [activeResearchId, setActiveResearchId] = useState(null);
   const [currentResult, setCurrentResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFollowUpLoading, setIsFollowUpLoading] = useState(false);
-  const [progress, setProgress] = useState({ phase: '', progress: 0, sourcesFound: 0 });
-  const [currentMode, setCurrentMode] = useState('deep');
-  const [clarification, setClarification] = useState(null);
+  const [progress, setProgress] = useState({ phase: '', progress: 0, message: '' });
+  const [currentMode, setCurrentMode] = useState('standard');
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  // Keep a counter to signal sidebar to refresh
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   // Toast System
   const addToast = useCallback((message, type = 'info') => {
@@ -51,141 +38,105 @@ export default function App() {
   // Handle Search
   const handleSearch = useCallback(async (query, mode) => {
     setError(null);
-    setClarification(null);
-
-    // Check if clarification is needed
-    const clarificationCheck = detectClarificationNeeded(query);
-    if (clarificationCheck.needed) {
-      setClarification(clarificationCheck);
-      return;
-    }
-
     setIsLoading(true);
     setCurrentResult(null);
     setActiveResearchId(null);
     setCurrentMode(mode);
     setActiveView('research');
-    setProgress({ phase: 'Initializing...', progress: 0, sourcesFound: 0 });
+    setProgress({ phase: 'Initializing...', progress: 0, message: '' });
 
     try {
-      const result = await executeResearch(query, mode, (progressData) => {
-        setProgress(progressData);
-      });
+      const response = await startResearch(query, mode);
 
-      // Save to history
-      const tags = autoTagQuery(query);
-      const historyEntry = addToHistory({
-        query,
-        mode,
-        result: result.report,
-        sources: result.sources,
-        tokenUsage: result.tokenUsage,
-        cost: result.cost,
-        latency: result.latency,
-        tags,
-      });
+      if (mode === 'deep' && response.sessionId && response.status === 'running') {
+        // Deep mode: connect to SSE stream
+        setActiveResearchId(response.sessionId);
+        setProgress({ phase: 'Starting deep research...', progress: 5, message: 'Connecting...' });
 
-      // Update usage stats
-      updateUsageStats({
-        mode,
-        tokenUsage: result.tokenUsage,
-        cost: result.cost,
-        latency: result.latency,
-        tags,
-      });
+        const stream = streamResearch(response.sessionId, {
+          onPhase: (data) => {
+            setProgress({
+              phase: data.phase || '',
+              progress: data.progress || 0,
+              message: data.message || '',
+            });
+          },
+          onComplete: (data) => {
+            setCurrentResult({
+              report: data.report,
+              citations: data.citations || [],
+              tokens: data.tokens,
+              latencyMs: data.latencyMs,
+              mode,
+              query,
+              sessionId: response.sessionId,
+            });
+            setIsLoading(false);
+            setHistoryVersion(v => v + 1);
+            addToast('Deep research completed', 'success');
+          },
+          onError: (message) => {
+            setError({ message: 'Research failed', details: message });
+            setIsLoading(false);
+            addToast('Research failed: ' + message, 'error');
+          },
+        });
 
+        // Store stream ref for potential cleanup
+        // (stream.close() can be called to abort)
+        return;
+      }
+
+      // Quick or Standard — result already returned
       setCurrentResult({
-        ...result,
-        followUpResults: [],
+        report: response.report,
+        citations: response.citations || [],
+        tokens: response.tokens,
+        latencyMs: response.latencyMs,
+        mode,
+        query,
+        sessionId: response.sessionId,
+        fromCache: response.fromCache,
       });
-      setActiveResearchId(historyEntry.id);
-      addToast('Research completed successfully', 'success');
+      setActiveResearchId(response.sessionId);
+      setIsLoading(false);
+      setHistoryVersion(v => v + 1);
+      addToast(response.fromCache ? 'Loaded from cache' : 'Research completed', 'success');
     } catch (err) {
       console.error('Research failed:', err);
       setError({
         message: 'Research failed. Please try again.',
         details: err.message,
       });
-      addToast('Research failed: ' + err.message, 'error');
-    } finally {
       setIsLoading(false);
+      addToast('Research failed: ' + err.message, 'error');
     }
   }, [addToast]);
 
-  // Handle Follow-up
-  const handleFollowUp = useCallback(async (followUpQuery) => {
-    if (!currentResult || !activeResearchId) return;
-
-    setIsFollowUpLoading(true);
+  // Select research from history
+  const handleSelectResearch = useCallback(async (id) => {
+    setActiveView('research');
+    setIsLoading(true);
     setError(null);
 
     try {
-      const result = await executeFollowUp(
-        currentResult.query,
-        followUpQuery,
-        currentResult.report,
-        () => { }
-      );
-
-      // Save to history
-      addFollowUp(activeResearchId, {
-        query: followUpQuery,
-        result: result.report,
-        tokenUsage: result.tokenUsage,
+      const data = await getReport(id);
+      setActiveResearchId(id);
+      setCurrentResult({
+        report: data.report,
+        citations: data.citations || [],
+        tokens: { total: data.totalTokens || 0 },
+        latencyMs: data.totalLatencyMs || 0,
+        mode: data.mode,
+        query: data.query,
+        sessionId: id,
+        phases: data.phases,
       });
-
-      // Update usage stats
-      updateUsageStats({
-        mode: 'quick',
-        tokenUsage: result.tokenUsage,
-        cost: result.cost,
-        latency: result.latency,
-        tags: autoTagQuery(followUpQuery),
-      });
-
-      setCurrentResult(prev => ({
-        ...prev,
-        followUpResults: [
-          ...(prev.followUpResults || []),
-          { ...result, query: followUpQuery },
-        ],
-      }));
-
-      addToast('Follow-up research completed', 'success');
     } catch (err) {
-      console.error('Follow-up failed:', err);
-      addToast('Follow-up failed: ' + err.message, 'error');
+      setError({ message: 'Failed to load report', details: err.message });
     } finally {
-      setIsFollowUpLoading(false);
+      setIsLoading(false);
     }
-  }, [currentResult, activeResearchId, addToast]);
-
-  // Select research from history
-  const handleSelectResearch = useCallback((id) => {
-    const item = getHistoryItem(id);
-    if (!item) return;
-
-    setActiveView('research');
-    setActiveResearchId(id);
-    setCurrentResult({
-      report: item.result,
-      sources: item.sources,
-      tags: item.tags,
-      tokenUsage: item.tokenUsage,
-      cost: item.cost,
-      latency: item.latency,
-      mode: item.mode,
-      query: item.query,
-      followUpResults: (item.followUps || []).map(fu => ({
-        report: fu.result,
-        query: fu.query,
-        tokenUsage: fu.tokenUsage,
-        cost: 0,
-      })),
-    });
-    setIsLoading(false);
-    setClarification(null);
-    setError(null);
   }, []);
 
   // New Research
@@ -193,22 +144,15 @@ export default function App() {
     setActiveResearchId(null);
     setCurrentResult(null);
     setIsLoading(false);
-    setClarification(null);
     setError(null);
   }, []);
-
-  // Clarification Select
-  const handleClarificationSelect = useCallback((suggestion) => {
-    setClarification(null);
-    handleSearch(suggestion, currentMode);
-  }, [handleSearch, currentMode]);
 
   // View change
   const handleViewChange = useCallback((view) => {
     setActiveView(view);
   }, []);
 
-  // Keyboard shortcut
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -231,14 +175,6 @@ export default function App() {
 
   const showWelcome = activeView === 'research' && !isLoading && !currentResult && !error;
 
-  // Breadcrumb text
-  const getBreadcrumb = () => {
-    if (activeView === 'dashboard') return 'Dashboard';
-    if (activeView === 'files') return 'Files';
-    if (currentResult) return null; // will render full breadcrumb
-    return 'New Research';
-  };
-
   return (
     <div className="app">
       <Sidebar
@@ -249,6 +185,7 @@ export default function App() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         activeView={activeView}
         onViewChange={handleViewChange}
+        historyVersion={historyVersion}
       />
 
       <main className={`main ${sidebarOpen ? 'main--with-sidebar' : 'main--full'}`}>
@@ -264,50 +201,40 @@ export default function App() {
             )}
             <div className="topbar__breadcrumb">
               <span className="topbar__breadcrumb-item" onClick={handleNewResearch} style={{ cursor: 'pointer' }}>
-                Research Intelligence
+                Research
               </span>
               <span className="topbar__breadcrumb-sep">/</span>
               <span className="topbar__breadcrumb-current">
                 {activeView === 'research' && currentResult
-                  ? (currentResult.query?.slice(0, 40) + (currentResult.query?.length > 40 ? '…' : ''))
+                  ? (currentResult.query?.slice(0, 40) + (currentResult.query?.length > 40 ? '...' : ''))
                   : activeView === 'dashboard' ? 'Dashboard'
-                    : activeView === 'files' ? 'Files'
-                      : 'Research Session'}
+                    : 'New Session'}
               </span>
             </div>
             {activeView === 'research' && (
               <div className="topbar__mode-pills">
-                <button
-                  className="topbar__mode-pill topbar__mode-pill--memory topbar__mode-pill--active"
-                  title="Memory active"
-                >
-                  Memory
-                </button>
-                <button
-                  className={`topbar__mode-pill ${currentMode === 'quick' ? 'topbar__mode-pill--active' : ''}`}
-                  onClick={() => setCurrentMode('quick')}
-                >
-                  Quick Brief
-                </button>
-                <button
-                  className={`topbar__mode-pill ${currentMode === 'deep' ? 'topbar__mode-pill--active' : ''}`}
-                  onClick={() => setCurrentMode('deep')}
-                >
-                  Deep Analysis
-                </button>
+                {['quick', 'standard', 'deep'].map(mode => (
+                  <button
+                    key={mode}
+                    className={`topbar__mode-pill ${currentMode === mode ? 'topbar__mode-pill--active' : ''}`}
+                    onClick={() => setCurrentMode(mode)}
+                  >
+                    {mode === 'quick' ? 'Quick' : mode === 'standard' ? 'Standard' : 'Deep'}
+                  </button>
+                ))}
               </div>
             )}
           </div>
           <div className="topbar__right">
             <div className="topbar__shortcut">
-              <kbd>⌘K</kbd>
+              <kbd>Ctrl+K</kbd>
               <span>New</span>
             </div>
             <button
               id="settings-btn"
               className="topbar__settings-btn"
               onClick={() => setSettingsOpen(true)}
-              title="Preferences (⌘,)"
+              title="Preferences (Ctrl+,)"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
@@ -319,20 +246,12 @@ export default function App() {
 
         {/* Main Content Area */}
         <div className="content">
-          {/* === DASHBOARD VIEW === */}
           {activeView === 'dashboard' && (
             <Dashboard />
           )}
 
-          {/* === FILES VIEW === */}
-          {activeView === 'files' && (
-            <FileUploader onFilesChange={setUploadedFiles} />
-          )}
-
-          {/* === RESEARCH VIEW === */}
           {activeView === 'research' && (
             <div className="research-view">
-              {/* Scrollable content area */}
               <div className="research-view__body">
                 {showWelcome && (
                   <div className="welcome">
@@ -342,22 +261,20 @@ export default function App() {
                         Get structured insights.
                       </h1>
                       <p className="welcome__subtext">
-                        Ask a technical question or upload a file. The dashboard presents your
-                        results as structured research reports — with metrics, visualisations,
-                        and findings.
+                        Ask a technical question. The engine analyzes real sources,
+                        synthesizes findings, and delivers a structured report with citations.
                       </p>
                     </div>
 
-                    {/* Starter Brief Cards */}
                     <div className="welcome__cards">
                       <div className="welcome__cards-grid">
                         {[
                           { mode: 'deep', query: 'Compare vector databases: Pinecone vs Weaviate vs Qdrant for production RAG' },
                           { mode: 'quick', query: 'What are the trade-offs of gRPC vs REST in microservices?' },
-                          { mode: 'deep', query: 'Production Kubernetes autoscaling: KEDA vs HPA vs VPA' },
+                          { mode: 'standard', query: 'Production Kubernetes autoscaling: KEDA vs HPA vs VPA' },
                           { mode: 'quick', query: 'Redis caching strategies and eviction policy comparison' },
-                          { mode: 'deep', query: 'Transformer attention mechanisms: complexity and optimisation' },
-                          { mode: 'quick', query: 'RAFT vs Paxos consensus algorithm trade-offs' },
+                          { mode: 'deep', query: 'Transformer attention mechanisms: complexity and optimization' },
+                          { mode: 'standard', query: 'RAFT vs Paxos consensus algorithm trade-offs' },
                         ].map((card, i) => (
                           <button
                             key={i}
@@ -365,7 +282,7 @@ export default function App() {
                             onClick={() => handleSearch(card.query, card.mode)}
                           >
                             <span className="welcome__card-mode">
-                              {card.mode === 'deep' ? 'Deep Analysis' : 'Quick Brief'}
+                              {card.mode === 'deep' ? 'Deep' : card.mode === 'standard' ? 'Standard' : 'Quick'}
                             </span>
                             <span className="welcome__card-query">{card.query}</span>
                           </button>
@@ -379,14 +296,13 @@ export default function App() {
                   <ResearchProgress
                     progress={progress.progress}
                     phase={progress.phase}
-                    sourcesFound={progress.sourcesFound}
+                    message={progress.message}
                     mode={currentMode}
                   />
                 )}
 
                 {error && !isLoading && (
                   <div className="error-panel">
-                    <div className="error-panel__icon">⚠️</div>
                     <h3 className="error-panel__title">Research Failed</h3>
                     <p className="error-panel__message">{error.message}</p>
                     {error.details && (
@@ -400,22 +316,14 @@ export default function App() {
 
                 {currentResult && !isLoading && (
                   <div className="result-container">
-                    <ResearchReport
-                      result={currentResult}
-                      onFollowUp={handleFollowUp}
-                      isFollowUpLoading={isFollowUpLoading}
-                    />
+                    <ResearchReport result={currentResult} />
                   </div>
                 )}
               </div>
 
-              {/* Pinned Query Bar */}
               <SearchPanel
                 onSearch={handleSearch}
                 isLoading={isLoading}
-                clarification={clarification}
-                onClarificationSelect={handleClarificationSelect}
-                onDismissClarification={() => setClarification(null)}
                 currentMode={currentMode}
                 onModeChange={setCurrentMode}
               />
@@ -431,9 +339,9 @@ export default function App() {
         {toasts.map(toast => (
           <div key={toast.id} className={`toast toast--${toast.type}`}>
             <span className="toast__icon">
-              {toast.type === 'success' && '✓'}
-              {toast.type === 'error' && '✕'}
-              {toast.type === 'info' && 'ℹ'}
+              {toast.type === 'success' && '\u2713'}
+              {toast.type === 'error' && '\u2715'}
+              {toast.type === 'info' && 'i'}
             </span>
             <span className="toast__message">{toast.message}</span>
           </div>

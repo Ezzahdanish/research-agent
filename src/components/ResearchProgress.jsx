@@ -1,79 +1,77 @@
+import { useState, useEffect } from 'react';
 import './ResearchProgress.css';
 
-const PHASE_ICONS = {
-    'Analyzing query...': '🔍',
-    'Analyzing query intent...': '🧠',
-    'Scanning sources...': '📡',
-    'Discovering relevant sources...': '🌐',
-    'Extracting key insights...': '💡',
-    'Cross-referencing findings...': '🔗',
-    'Synthesizing analysis...': '⚗️',
-    'Generating report...': '📝',
-    'Generating structured report...': '📊',
-    'Adding citations...': '📎',
-    'Understanding follow-up context...': '🔄',
-    'Analyzing in relation to previous research...': '🧩',
-    'Generating refined response...': '✨',
+const PHASE_LABELS = {
+    query_analysis: 'Analyzing Query',
+    source_discovery: 'Discovering Sources',
+    content_extraction: 'Extracting Content',
+    cross_validation: 'Cross-Validating',
+    structured_synthesis: 'Synthesizing Report',
+    citation_linking: 'Linking Citations',
 };
 
-export default function ResearchProgress({ progress, phase, sourcesFound, mode }) {
-    const icon = PHASE_ICONS[phase] || '⏳';
+export default function ResearchProgress({ progress = 0, phase = '', message = '', mode = 'standard' }) {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        const start = Date.now();
+        const interval = setInterval(() => {
+            setElapsed(Math.floor((Date.now() - start) / 1000));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const phaseLabel = PHASE_LABELS[phase] || phase || 'Processing...';
+    const isDeep = mode === 'deep';
 
     return (
         <div className="research-progress">
-            <div className="research-progress__container">
-                {/* Orbital Animation */}
-                <div className="research-progress__orb">
-                    <div className="research-progress__orb-ring research-progress__orb-ring--1" />
-                    <div className="research-progress__orb-ring research-progress__orb-ring--2" />
-                    <div className="research-progress__orb-ring research-progress__orb-ring--3" />
-                    <div className="research-progress__orb-core">
-                        <span className="research-progress__orb-icon">{icon}</span>
-                    </div>
-                </div>
-
-                {/* Progress Info */}
-                <div className="research-progress__info">
-                    <div className="research-progress__header">
-                        <span className="research-progress__mode-badge">
-                            {mode === 'quick' ? '⚡ Quick Mode' : '🔬 Deep Mode'}
-                        </span>
-                        <span className="research-progress__percent">{progress}%</span>
-                    </div>
-
-                    <h3 className="research-progress__phase">{phase}</h3>
-
-                    {/* Progress Bar */}
-                    <div className="research-progress__bar-track">
-                        <div
-                            className="research-progress__bar-fill"
-                            style={{ width: `${progress}%` }}
-                        />
-                        <div
-                            className="research-progress__bar-glow"
-                            style={{ left: `${progress}%` }}
-                        />
-                    </div>
-
-                    <div className="research-progress__meta">
-                        {sourcesFound !== undefined && (
-                            <span className="research-progress__sources">
-                                📚 {sourcesFound} source{sourcesFound !== 1 ? 's' : ''} found
-                            </span>
-                        )}
-                        <span className="research-progress__eta">
-                            {mode === 'quick' ? 'ETA: <2 min' : 'ETA: <10 min'}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Typing dots */}
-                <div className="research-progress__dots">
-                    <span className="research-progress__dot" style={{ animationDelay: '0s' }} />
-                    <span className="research-progress__dot" style={{ animationDelay: '0.2s' }} />
-                    <span className="research-progress__dot" style={{ animationDelay: '0.4s' }} />
-                </div>
+            <div className="research-progress__header">
+                <h3 className="research-progress__title">
+                    {isDeep ? 'Deep Research in Progress' : 'Researching...'}
+                </h3>
+                <span className="research-progress__time">{elapsed}s</span>
             </div>
+
+            <div className="research-progress__bar-track">
+                <div
+                    className="research-progress__bar-fill"
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+            </div>
+
+            <div className="research-progress__info">
+                <span className="research-progress__phase">{phaseLabel}</span>
+                <span className="research-progress__percent">{Math.round(progress)}%</span>
+            </div>
+
+            {message && (
+                <p className="research-progress__message">{message}</p>
+            )}
+
+            {isDeep && (
+                <div className="research-progress__phases">
+                    {Object.entries(PHASE_LABELS).map(([key, label]) => {
+                        const phaseOrder = Object.keys(PHASE_LABELS);
+                        const currentIdx = phaseOrder.indexOf(phase);
+                        const thisIdx = phaseOrder.indexOf(key);
+                        const isDone = thisIdx < currentIdx;
+                        const isCurrent = key === phase;
+
+                        return (
+                            <div
+                                key={key}
+                                className={`research-progress__phase-item ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}`}
+                            >
+                                <span className="research-progress__phase-dot">
+                                    {isDone ? '\u2713' : isCurrent ? '\u25CF' : '\u25CB'}
+                                </span>
+                                <span className="research-progress__phase-label">{label}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
