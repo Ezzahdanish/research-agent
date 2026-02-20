@@ -28,9 +28,11 @@ export default function SearchPanel({
     attachedFiles: externalFiles,
     onAttachFiles,
     onRemoveFile,
+    currentMode,
+    onModeChange,
 }) {
     const [query, setQuery] = useState('');
-    const [mode, setMode] = useState('deep');
+    const [mode, setMode] = useState(currentMode || 'deep');
     const [isFocused, setIsFocused] = useState(false);
     const [localFiles, setLocalFiles] = useState([]);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -38,13 +40,17 @@ export default function SearchPanel({
     const fileInputRef = useRef(null);
     const dropRef = useRef(null);
 
-    // Use external files if provided, otherwise local
+    // Sync mode from external
+    useEffect(() => {
+        if (currentMode) setMode(currentMode);
+    }, [currentMode]);
+
     const attachedFiles = externalFiles || localFiles;
 
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
         }
     }, [query]);
 
@@ -85,7 +91,6 @@ export default function SearchPanel({
         }
     }, [onRemoveFile]);
 
-    // Drag and drop on the search panel
     const handleDragOver = useCallback((e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -104,19 +109,15 @@ export default function SearchPanel({
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
-        if (e.dataTransfer.files?.length > 0) {
-            addFiles(e.dataTransfer.files);
-        }
+        if (e.dataTransfer.files?.length > 0) addFiles(e.dataTransfer.files);
     }, [addFiles]);
 
-    const suggestions = [
-        'How do React Server Components work under the hood?',
-        'Compare PostgreSQL vs CockroachDB for distributed SQL',
-        'Best practices for LLM inference optimization in production',
-        'Explain CRDT-based conflict resolution for collaborative apps',
-    ];
-
     const canSubmit = query.trim() || attachedFiles.length > 0;
+
+    const handleModeChange = (newMode) => {
+        setMode(newMode);
+        onModeChange?.(newMode);
+    };
 
     return (
         <div
@@ -130,40 +131,14 @@ export default function SearchPanel({
             {isDragOver && (
                 <div className="search-panel__drag-overlay">
                     <div className="search-panel__drag-content">
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                            <path d="M14 4v16M8 10l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M24 18v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 4v13M6 9l6-5 6 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M20 18v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                         <span>Drop files to attach</span>
                     </div>
                 </div>
             )}
-
-            {/* Mode Selector */}
-            <div className="search-panel__modes">
-                <button
-                    id="mode-quick"
-                    className={`search-panel__mode ${mode === 'quick' ? 'search-panel__mode--active' : ''}`}
-                    onClick={() => setMode('quick')}
-                >
-                    <span className="search-panel__mode-icon">⚡</span>
-                    <div className="search-panel__mode-info">
-                        <span className="search-panel__mode-name">Quick Mode</span>
-                        <span className="search-panel__mode-desc">Fast, focused answers (&lt;2 min)</span>
-                    </div>
-                </button>
-                <button
-                    id="mode-deep"
-                    className={`search-panel__mode ${mode === 'deep' ? 'search-panel__mode--active' : ''}`}
-                    onClick={() => setMode('deep')}
-                >
-                    <span className="search-panel__mode-icon">🔬</span>
-                    <div className="search-panel__mode-info">
-                        <span className="search-panel__mode-name">Deep Mode</span>
-                        <span className="search-panel__mode-desc">Multi-source synthesis (&lt;10 min)</span>
-                    </div>
-                </button>
-            </div>
 
             {/* Attached Files */}
             {attachedFiles.length > 0 && (
@@ -177,81 +152,72 @@ export default function SearchPanel({
                                 className="search-panel__file-remove"
                                 onClick={() => removeFile(file.id)}
                                 title="Remove file"
-                            >
-                                ×
-                            </button>
+                            >×</button>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Search Input */}
-            <form className={`search-panel__form ${isFocused ? 'search-panel__form--focused' : ''}`} onSubmit={handleSubmit}>
-                <div className="search-panel__input-wrap">
-                    <div className="search-panel__input-icon">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="8.5" cy="8.5" r="6" stroke="currentColor" strokeWidth="1.8" />
-                            <path d="M13 13L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                        </svg>
-                    </div>
-                    <textarea
-                        ref={textareaRef}
-                        id="research-input"
-                        className="search-panel__input"
-                        placeholder={
-                            attachedFiles.length > 0
-                                ? `Ask a question about ${attachedFiles.map(f => f.name).join(', ')} or press → to analyze...`
-                                : 'Ask a technical research question...'
-                        }
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        onKeyDown={handleKeyDown}
-                        rows={1}
-                        disabled={isLoading}
-                    />
-                    <div className="search-panel__actions">
-                        {/* File Attach Button */}
-                        <button
-                            type="button"
-                            className="search-panel__attach-btn"
-                            onClick={() => fileInputRef.current?.click()}
-                            title="Attach files (PDF, DOC, CSV, etc.)"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <path d="M14 8.67L8.36 14.3a4 4 0 0 1-5.66-5.66L9.05 2.3a2.67 2.67 0 0 1 3.77 3.77l-6.35 6.35a1.33 1.33 0 0 1-1.89-1.89l5.66-5.65" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.png,.jpg,.jpeg,.zip"
-                            onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = ''; } }}
-                            style={{ display: 'none' }}
-                        />
+            {/* Query Label */}
+            <span className="search-panel__label">Research Query</span>
 
-                        <span className="search-panel__hint">
-                            {mode === 'quick' ? '⚡ Quick' : '🔬 Deep'}
-                            {attachedFiles.length > 0 && ` • ${attachedFiles.length} file(s)`}
-                            {' • Shift+Enter for newline'}
-                        </span>
-                        <button
-                            id="submit-research"
-                            type="submit"
-                            className={`search-panel__submit ${canSubmit ? 'search-panel__submit--active' : ''}`}
-                            disabled={!canSubmit || isLoading}
-                        >
-                            {isLoading ? (
-                                <div className="search-panel__spinner" />
-                            ) : (
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                    <path d="M3 9h12M10 4l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            )}
-                        </button>
-                    </div>
+            {/* Search Input Form */}
+            <form
+                className={`search-panel__form ${isFocused ? 'search-panel__form--focused' : ''}`}
+                onSubmit={handleSubmit}
+            >
+                <textarea
+                    ref={textareaRef}
+                    id="research-input"
+                    className="search-panel__input"
+                    placeholder={
+                        attachedFiles.length > 0
+                            ? `Ask about ${attachedFiles.map(f => f.name).join(', ')}...`
+                            : 'Describe what you want researched for a full structured report...'
+                    }
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                    disabled={isLoading}
+                />
+
+                <div className="search-panel__actions">
+                    {/* File Attach */}
+                    <button
+                        type="button"
+                        className="search-panel__attach-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Attach files"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M14 8.67L8.36 14.3a4 4 0 0 1-5.66-5.66L9.05 2.3a2.67 2.67 0 0 1 3.77 3.77l-6.35 6.35a1.33 1.33 0 0 1-1.89-1.89l5.66-5.65" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.png,.jpg,.jpeg,.zip"
+                        onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = ''; } }}
+                        style={{ display: 'none' }}
+                    />
+
+                    {/* RUN button */}
+                    <button
+                        id="submit-research"
+                        type="submit"
+                        className={`search-panel__submit ${canSubmit ? 'search-panel__submit--active' : ''}`}
+                        disabled={!canSubmit || isLoading}
+                    >
+                        {isLoading ? (
+                            <div className="search-panel__spinner" />
+                        ) : (
+                            <>RUN →</>
+                        )}
+                    </button>
                 </div>
             </form>
 
@@ -259,15 +225,13 @@ export default function SearchPanel({
             {clarification && (
                 <div className="search-panel__clarification">
                     <div className="search-panel__clarification-header">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M6.5 6a1.5 1.5 0 1 1 2.12 1.37c-.38.19-.62.56-.62.96V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            <circle cx="8" cy="11" r="0.75" fill="currentColor" />
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" strokeWidth="1.4" />
+                            <path d="M6.5 6a1.5 1.5 0 1 1 2.12 1.37c-.38.19-.62.56-.62.96V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                            <circle cx="7.5" cy="11" r="0.75" fill="currentColor" />
                         </svg>
                         <span>Clarification needed</span>
-                        <button className="search-panel__clarification-dismiss" onClick={onDismissClarification}>
-                            ×
-                        </button>
+                        <button className="search-panel__clarification-dismiss" onClick={onDismissClarification}>×</button>
                     </div>
                     <p className="search-panel__clarification-reason">{clarification.reason}</p>
                     <div className="search-panel__suggestions">
@@ -277,29 +241,10 @@ export default function SearchPanel({
                                 className="search-panel__suggestion"
                                 onClick={() => onClarificationSelect(s)}
                             >
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                                     <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                                 <span>{s}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Suggestion Chips */}
-            {!query && !isLoading && !clarification && attachedFiles.length === 0 && (
-                <div className="search-panel__chips">
-                    <span className="search-panel__chips-label">Try these:</span>
-                    <div className="search-panel__chips-list">
-                        {suggestions.map((s, i) => (
-                            <button
-                                key={i}
-                                className="search-panel__chip"
-                                onClick={() => setQuery(s)}
-                                style={{ animationDelay: `${i * 80}ms` }}
-                            >
-                                {s}
                             </button>
                         ))}
                     </div>

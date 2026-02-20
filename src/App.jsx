@@ -263,20 +263,40 @@ export default function App() {
               </button>
             )}
             <div className="topbar__breadcrumb">
-              {activeView === 'research' && currentResult ? (
-                <>
-                  <span className="topbar__breadcrumb-item" onClick={handleNewResearch} style={{ cursor: 'pointer' }}>
-                    Research
-                  </span>
-                  <span className="topbar__breadcrumb-sep">/</span>
-                  <span className="topbar__breadcrumb-current">
-                    {currentResult.query?.slice(0, 50)}{currentResult.query?.length > 50 ? '...' : ''}
-                  </span>
-                </>
-              ) : (
-                <span className="topbar__breadcrumb-current">{getBreadcrumb()}</span>
-              )}
+              <span className="topbar__breadcrumb-item" onClick={handleNewResearch} style={{ cursor: 'pointer' }}>
+                Research Intelligence
+              </span>
+              <span className="topbar__breadcrumb-sep">/</span>
+              <span className="topbar__breadcrumb-current">
+                {activeView === 'research' && currentResult
+                  ? (currentResult.query?.slice(0, 40) + (currentResult.query?.length > 40 ? '…' : ''))
+                  : activeView === 'dashboard' ? 'Dashboard'
+                    : activeView === 'files' ? 'Files'
+                      : 'Research Session'}
+              </span>
             </div>
+            {activeView === 'research' && (
+              <div className="topbar__mode-pills">
+                <button
+                  className="topbar__mode-pill topbar__mode-pill--memory topbar__mode-pill--active"
+                  title="Memory active"
+                >
+                  Memory
+                </button>
+                <button
+                  className={`topbar__mode-pill ${currentMode === 'quick' ? 'topbar__mode-pill--active' : ''}`}
+                  onClick={() => setCurrentMode('quick')}
+                >
+                  Quick Brief
+                </button>
+                <button
+                  className={`topbar__mode-pill ${currentMode === 'deep' ? 'topbar__mode-pill--active' : ''}`}
+                  onClick={() => setCurrentMode('deep')}
+                >
+                  Deep Analysis
+                </button>
+              </div>
+            )}
           </div>
           <div className="topbar__right">
             <div className="topbar__shortcut">
@@ -311,108 +331,95 @@ export default function App() {
 
           {/* === RESEARCH VIEW === */}
           {activeView === 'research' && (
-            <>
-              {showWelcome && (
-                <div className="welcome">
-                  <div className="welcome__hero">
-                    <div className="welcome__logo">
-                      <div className="welcome__logo-orb">
-                        <div className="welcome__logo-ring welcome__logo-ring--1" />
-                        <div className="welcome__logo-ring welcome__logo-ring--2" />
-                        <div className="welcome__logo-core">
-                          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                            <defs>
-                              <linearGradient id="welcomeGrad" x1="0" y1="0" x2="32" y2="32">
-                                <stop offset="0%" stopColor="#6c5ce7" />
-                                <stop offset="100%" stopColor="#00cec9" />
-                              </linearGradient>
-                            </defs>
-                            <path d="M8 8l8 4 8-4v12l-8 4-8-4V8z" stroke="url(#welcomeGrad)" strokeWidth="2" fill="none" />
-                            <path d="M16 12v12M8 8l8 4M24 8l-8 4" stroke="url(#welcomeGrad)" strokeWidth="1.5" opacity="0.5" />
-                          </svg>
-                        </div>
-                      </div>
+            <div className="research-view">
+              {/* Scrollable content area */}
+              <div className="research-view__body">
+                {showWelcome && (
+                  <div className="welcome">
+                    <div className="welcome__hero">
+                      <h1 className="welcome__headline">
+                        Research <em>anything.</em><br />
+                        Get structured insights.
+                      </h1>
+                      <p className="welcome__subtext">
+                        Ask a technical question or upload a file. The dashboard presents your
+                        results as structured research reports — with metrics, visualisations,
+                        and findings.
+                      </p>
                     </div>
-                    <h1 className="welcome__title">
-                      <span className="welcome__title-gradient">DeepResearch</span>
-                      <span className="welcome__title-sub">Agent</span>
-                    </h1>
-                    <p className="welcome__description">
-                      Your AI-powered senior research engineer assistant. Explore documentation,
-                      papers, blogs, and repositories to deliver production-quality technical insights.
-                    </p>
-                    <div className="welcome__features">
-                      <div className="welcome__feature">
-                        <span className="welcome__feature-icon">⚡</span>
-                        <span className="welcome__feature-text">Quick &amp; Deep modes</span>
-                      </div>
-                      <div className="welcome__feature">
-                        <span className="welcome__feature-icon">🧠</span>
-                        <span className="welcome__feature-text">Persistent memory</span>
-                      </div>
-                      <div className="welcome__feature">
-                        <span className="welcome__feature-icon">📊</span>
-                        <span className="welcome__feature-text">Structured reports</span>
-                      </div>
-                      <div className="welcome__feature">
-                        <span className="welcome__feature-icon">💰</span>
-                        <span className="welcome__feature-text">Token tracking</span>
+
+                    {/* Starter Brief Cards */}
+                    <div className="welcome__cards">
+                      <div className="welcome__cards-grid">
+                        {[
+                          { mode: 'deep', query: 'Compare vector databases: Pinecone vs Weaviate vs Qdrant for production RAG' },
+                          { mode: 'quick', query: 'What are the trade-offs of gRPC vs REST in microservices?' },
+                          { mode: 'deep', query: 'Production Kubernetes autoscaling: KEDA vs HPA vs VPA' },
+                          { mode: 'quick', query: 'Redis caching strategies and eviction policy comparison' },
+                          { mode: 'deep', query: 'Transformer attention mechanisms: complexity and optimisation' },
+                          { mode: 'quick', query: 'RAFT vs Paxos consensus algorithm trade-offs' },
+                        ].map((card, i) => (
+                          <button
+                            key={i}
+                            className="welcome__card"
+                            onClick={() => handleSearch(card.query, card.mode)}
+                          >
+                            <span className="welcome__card-mode">
+                              {card.mode === 'deep' ? 'Deep Analysis' : 'Quick Brief'}
+                            </span>
+                            <span className="welcome__card-query">{card.query}</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
+                )}
 
-                  <SearchPanel
-                    onSearch={handleSearch}
-                    isLoading={isLoading}
-                    clarification={clarification}
-                    onClarificationSelect={handleClarificationSelect}
-                    onDismissClarification={() => setClarification(null)}
+                {isLoading && (
+                  <ResearchProgress
+                    progress={progress.progress}
+                    phase={progress.phase}
+                    sourcesFound={progress.sourcesFound}
+                    mode={currentMode}
                   />
-                </div>
-              )}
+                )}
 
-              {isLoading && (
-                <ResearchProgress
-                  progress={progress.progress}
-                  phase={progress.phase}
-                  sourcesFound={progress.sourcesFound}
-                  mode={currentMode}
-                />
-              )}
+                {error && !isLoading && (
+                  <div className="error-panel">
+                    <div className="error-panel__icon">⚠️</div>
+                    <h3 className="error-panel__title">Research Failed</h3>
+                    <p className="error-panel__message">{error.message}</p>
+                    {error.details && (
+                      <pre className="error-panel__details">{error.details}</pre>
+                    )}
+                    <button className="btn btn-primary" onClick={handleNewResearch}>
+                      Try Again
+                    </button>
+                  </div>
+                )}
 
-              {error && !isLoading && (
-                <div className="error-panel">
-                  <div className="error-panel__icon">⚠️</div>
-                  <h3 className="error-panel__title">Research Failed</h3>
-                  <p className="error-panel__message">{error.message}</p>
-                  {error.details && (
-                    <pre className="error-panel__details">{error.details}</pre>
-                  )}
-                  <button className="btn btn-primary" onClick={handleNewResearch}>
-                    Try Again
-                  </button>
-                </div>
-              )}
-
-              {currentResult && !isLoading && (
-                <div className="result-container">
-                  <div className="result-container__search">
-                    <SearchPanel
-                      onSearch={handleSearch}
-                      isLoading={isLoading}
-                      clarification={clarification}
-                      onClarificationSelect={handleClarificationSelect}
-                      onDismissClarification={() => setClarification(null)}
+                {currentResult && !isLoading && (
+                  <div className="result-container">
+                    <ResearchReport
+                      result={currentResult}
+                      onFollowUp={handleFollowUp}
+                      isFollowUpLoading={isFollowUpLoading}
                     />
                   </div>
-                  <ResearchReport
-                    result={currentResult}
-                    onFollowUp={handleFollowUp}
-                    isFollowUpLoading={isFollowUpLoading}
-                  />
-                </div>
-              )}
-            </>
+                )}
+              </div>
+
+              {/* Pinned Query Bar */}
+              <SearchPanel
+                onSearch={handleSearch}
+                isLoading={isLoading}
+                clarification={clarification}
+                onClarificationSelect={handleClarificationSelect}
+                onDismissClarification={() => setClarification(null)}
+                currentMode={currentMode}
+                onModeChange={setCurrentMode}
+              />
+            </div>
           )}
         </div>
       </main>

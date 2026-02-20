@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
     SESSIONS: 'dr_sessions',
     BOOKMARKS: 'dr_bookmarks',
     USAGE_STATS: 'dr_usage_stats',
+    MEMORY_NOTES: 'dr_memory_notes',
 };
 
 // Default user preferences
@@ -240,4 +241,56 @@ export function getContextMemory() {
         },
         totalResearches: history.length,
     };
+}
+
+// ========== Memory Notes (natural language preferences) ==========
+
+export function getMemoryNotes() {
+    return safeGetJSON(STORAGE_KEYS.MEMORY_NOTES, []);
+}
+
+export function addMemoryNote(note) {
+    const notes = getMemoryNotes();
+    notes.unshift({ id: `note_${Date.now()}`, note, createdAt: Date.now() });
+    if (notes.length > 20) notes.length = 20;
+    safeSetJSON(STORAGE_KEYS.MEMORY_NOTES, notes);
+    return notes;
+}
+
+export function clearMemoryNotes() {
+    safeSetJSON(STORAGE_KEYS.MEMORY_NOTES, []);
+}
+
+export function getMemorySummary() {
+    const prefs = getPreferences();
+    const history = getHistory();
+    const notes = getMemoryNotes();
+
+    const lines = [];
+
+    // Preferences
+    if (prefs.preferCodeExamples) {
+        lines.push('Prefers code examples in reports');
+    }
+    if (prefs.preferredLanguages?.length > 0) {
+        lines.push(`Preferred languages: ${prefs.preferredLanguages.join(', ')}`);
+    }
+    if (prefs.researchMode) {
+        lines.push(`Default mode: ${prefs.researchMode === 'quick' ? 'Quick Brief' : 'Deep Analysis'}`);
+    }
+
+    // Recent topics
+    const recentTopics = history.slice(0, 3).map(h =>
+        h.query.length > 40 ? h.query.slice(0, 40) + '…' : h.query
+    );
+    if (recentTopics.length > 0) {
+        lines.push(`Recent research: ${recentTopics.join(' · ')}`);
+    }
+
+    // Custom memory notes
+    notes.slice(0, 5).forEach(n => {
+        lines.push(`💬 ${n.note}`);
+    });
+
+    return lines;
 }

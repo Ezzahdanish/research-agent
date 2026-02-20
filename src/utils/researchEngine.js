@@ -10,7 +10,7 @@
  * - Documentation search engines
  */
 
-import { getContextMemory, getPreferences } from '../store/memory.js';
+import { getContextMemory, getPreferences, addMemoryNote } from '../store/memory.js';
 
 // ========== Token & Cost Estimation ==========
 
@@ -28,6 +28,85 @@ export function calculateCost(inputTokens, outputTokens) {
     const inputCost = (inputTokens / 1000) * TOKEN_COST_PER_1K.input;
     const outputCost = (outputTokens / 1000) * TOKEN_COST_PER_1K.output;
     return Math.round((inputCost + outputCost) * 10000) / 10000;
+}
+
+// ========== Latency Estimation ==========
+
+export function estimateLatency(mode) {
+    return mode === 'quick'
+        ? { label: '~1–2 min', seconds: 90 }
+        : { label: '~5–10 min', seconds: 480 };
+}
+
+// ========== Memory Command Detection ==========
+
+const LANGUAGE_NAMES = ['python', 'javascript', 'typescript', 'rust', 'go', 'java', 'c++', 'ruby', 'kotlin', 'swift'];
+const CODE_KEYWORDS = ['code example', 'code snippet', 'code', 'examples', 'snippets', 'implementations'];
+const DEEP_KEYWORDS = ['deep analysis', 'deep mode', 'deep research', 'comprehensive'];
+const QUICK_KEYWORDS = ['quick brief', 'quick mode', 'brief', 'fast answers'];
+
+export function detectMemoryCommand(query) {
+    const trimmed = query.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Must start with a memory-indicating phrase
+    const startsWithMemory =
+        lower.startsWith('remember') ||
+        lower.startsWith('always ') ||
+        lower.startsWith('note that') ||
+        lower.startsWith('keep in mind') ||
+        lower.startsWith('i prefer') ||
+        lower.startsWith('i want') ||
+        lower.startsWith('i like') ||
+        lower.startsWith('set my') ||
+        lower.startsWith('i work with') ||
+        lower.startsWith('i use ') ||
+        lower.startsWith('use ');
+
+    if (!startsWithMemory) return { isMemoryCommand: false };
+
+    const updates = {};
+    let noteText = null;
+
+    // Check for language preference
+    for (const lang of LANGUAGE_NAMES) {
+        const escapedLang = lang.replace('+', '\\+');
+        if (new RegExp(`\\b${escapedLang}\\b`, 'i').test(lower)) {
+            updates.preferredLanguages = [lang];
+            noteText = `Prefers ${lang} code`;
+            break;
+        }
+    }
+
+    // Check for code examples preference
+    if (CODE_KEYWORDS.some(kw => lower.includes(kw))) {
+        updates.preferCodeExamples = true;
+        if (!noteText) noteText = 'Prefers code examples in responses';
+    }
+
+    // Check for mode preference
+    if (DEEP_KEYWORDS.some(kw => lower.includes(kw))) {
+        updates.researchMode = 'deep';
+        if (!noteText) noteText = 'Prefers Deep Analysis mode';
+    } else if (QUICK_KEYWORDS.some(kw => lower.includes(kw))) {
+        updates.researchMode = 'quick';
+        if (!noteText) noteText = 'Prefers Quick Brief mode';
+    }
+
+    // If nothing concrete extracted, store as raw note
+    if (Object.keys(updates).length === 0 && !noteText) {
+        noteText = trimmed.replace(/^(?:remember(?:\s+that)?|always|note that|keep in mind):?\s*/i, '');
+        if (!noteText || noteText.length < 3) return { isMemoryCommand: false };
+    }
+
+    const displayNote = noteText || trimmed;
+
+    return {
+        isMemoryCommand: true,
+        updates,
+        noteText: displayNote,
+        originalQuery: trimmed,
+    };
 }
 
 // ========== Clarification Detection ==========
